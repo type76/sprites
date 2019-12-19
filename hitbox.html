@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta charset="utf-8" />
+  <meta name=viewport content='width=500'>
+
+  <title>happy joy</title>
+  <style>
+  body { margin: 0; 
+    background: #000; color: #fff;
+    font-family: monospace; overflow: hidden;
+  }
+
+    #userpoints {position: absolute; list-style: none; margin: 0; padding: 2px;}
+    #userpoints li {color: #fff; padding: 0; margin: 2px; text-indent: 6px;}
+    #red {border-left: red 2px solid;}
+  </style>
+</head>
+<body>
+  <ul id="userpoints">
+    <li id="red">0</li>
+  </ul>
+
+
+
+  <script src="js/three.min.js"></script>
+  <script src="js/OrbitControls.min.js"></script>
+
+
+  <script>
+// spritesheet function
+const spriteSheetTextureMap = {};
+THREE.SpriteSheetTexture = function (
+  id,
+  imageURL,
+  framesX,
+  frameDelay,
+  _endFrame
+  ) {
+    if(spriteSheetTextureMap[id]){
+    clearInterval(spriteSheetTextureMap[id].timer);
+  }
+  spriteSheetTextureMap[id] = {
+    imageURL,
+    framesX,
+    frameDelay,
+    _endFrame
+  };
+
+  var frameWidth,
+  frameHeight,
+  x = (y = count = startFrame = 0),
+  endFrame = _endFrame || framesX,
+  canvas = document.createElement("canvas"),
+  ctx = canvas.getContext("2d"),
+  canvasTexture = new THREE.CanvasTexture(canvas),
+  img = new Image();
+  img.onload = function () {
+    canvas.width = frameWidth = img.width / framesX;
+    canvas.height = frameHeight = img.height;
+    spriteSheetTextureMap[id].timer = setInterval(nextFrame, frameDelay);
+  };
+  img.src = imageURL;
+
+  function nextFrame() {
+    count++;
+
+    if (count >= endFrame) {
+      count = 0;
+    }
+
+    x = (count % framesX) * frameWidth;
+    y = ((count / framesX) | 0) * frameHeight;
+
+    ctx.clearRect(0, 0, frameWidth, frameHeight);
+    ctx.drawImage(
+      img,
+      x,
+      y,
+      frameWidth,
+      frameHeight,
+      0,
+      0,
+      frameWidth,
+      frameHeight
+      );
+    canvasTexture.needsUpdate = true;
+  }
+  return canvasTexture;
+};
+</script>
+
+
+<script>
+var points = {r:0}
+var xtimer = 0;
+var keyboard;
+var collidableMeshList = [];
+var scene = new THREE.Scene();
+var camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.8, 1000 );
+var renderer = new THREE.WebGLRenderer( { alpha: true, antialias: true } );
+renderer.setSize( window.innerWidth, window.innerHeight );
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFShadowMap;
+document.body.appendChild( renderer.domElement );
+
+scene.position.set(0,-1,0);
+scene.fog = new THREE.FogExp2( 0x000000, 0.025 );
+
+// lights
+var light = new THREE.PointLight( 0xffffff, 1, 30 );
+light.position.set( 0, 10, 0 );
+scene.add( light );
+
+
+// camera
+camera.position.x = 3;
+camera.position.y = 0.5;
+camera.position.z = 0;
+camera.lookAt(0,0,0)
+
+
+// controls
+var controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.maxPolarAngle = Math.PI*0.51;
+controls.enableDamping = true;
+controls.dampingFactor = 0.4;
+controls.maxDistance = 20;
+controls.minDistance = 4;
+controls.enablePan = false;
+
+// grid
+var size = 10;
+var divisions = 1;
+var gridHelper = new THREE.GridHelper( size, divisions );
+gridHelper.position.set( 0, 0.1, 0 );
+
+// // ambient
+var light = new THREE.AmbientLight( 0x666666 );
+light.intensity = 0.5;
+scene.add( light );
+
+
+// ground plane
+ground = new THREE.TextureLoader().load( 'assets/ground.png' );  
+ground.magFilter = THREE.NearestFilter;
+ground.minFilteer = THREE.NearestFilter;
+// ground
+groundmaterial = new THREE.MeshBasicMaterial({
+  map: ground
+});    
+bggeometry = new THREE.PlaneGeometry(20, 20, 1);
+grnd = new THREE.Mesh(bggeometry, groundmaterial);
+grnd.rotation.x= -Math.PI/2;
+scene.add(grnd);
+
+
+// events
+window.addEventListener('keyup', function(event) { keyboard.onKeyup(event); }, false);
+window.addEventListener('keydown', function(event) { keyboard.onKeydown(event); }, false);
+// resize
+window.addEventListener( 'resize', onWindowResize, false );
+function onWindowResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize( window.innerWidth, window.innerHeight );
+}
+
+// hero
+hero = new THREE.Group();
+scene.add( hero );
+hero.position.set(0,0,0);
+hero.rotation.y = Math.PI/2;
+
+cursor = new THREE.Group();
+scene.add(cursor);
+
+mothership = new THREE.Group();
+scene.add(mothership);
+
+cube = new THREE.Group();
+mothership.add(cube);
+
+
+// hero hitbox
+let bgeometry = new THREE.BoxGeometry( 0.5, 0.5, 0.5 );
+let mmaterial = new THREE.MeshLambertMaterial( { color: 0x666666 } );
+let cubicbody = new THREE.Mesh( bgeometry, mmaterial );
+cubicbody.position.set(0,0.5,0);
+hero.add( cubicbody );
+// invisible
+cubicbody.material.colorWrite = false;
+cubicbody.material.depthWrite = false;
+
+//plane geometry
+let plgeometry = new THREE.PlaneBufferGeometry( 10, 10, 10, 10 );
+
+//plane material
+let plmaterial = new THREE.MeshBasicMaterial( { 
+  transparent:true,
+  opacity:0
+} );
+
+//plane object3D
+let plane = new THREE.Mesh( plgeometry, plmaterial );
+plane.name = 'plane';
+plane.rotation.set(-Math.PI/2,0,0);
+plane.name = 'plane';
+scene.add( plane );
+
+
+// keys
+keyboard = {
+  _pressed: {},
+
+  LEFT: 37,
+  UP: 38,
+  RIGHT: 39,
+  DOWN: 40,
+
+  isDown: function(keyCode) {
+    return this._pressed[keyCode];
+  },
+
+  onKeydown: function(event) {
+    this._pressed[event.keyCode] = true;
+  },
+
+  onKeyup: function(event) {
+    heromaterial.map = idletexture;
+    delete this._pressed[event.keyCode];
+  }
+};
+
+
+
+// setup NPCs
+function colliders() {
+// 3D box
+var collgeo = new THREE.CubeGeometry( 0.5, 0.5, 0.5 );
+bx1 = new THREE.Mesh(collgeo, new THREE.MeshBasicMaterial( {color: 0xff0000} ));
+bx1.position.set(0, 0.5, 4);
+bx1.name = 'red';
+scene.add(bx1);
+// make it invisible  
+bx1.material.colorWrite = false;
+bx1.material.depthWrite = false;
+collidableMeshList.push(bx1);
+// 2D plane
+frogidle = new THREE.TextureLoader().load( 'assets/frogidle.png' );  
+frogidle.magFilter = THREE.NearestFilter;
+frogidle.minFilter = THREE.LinearMipMapLinearFilter;
+
+froghit = new THREE.TextureLoader().load( 'assets/froghit.png' );  
+froghit.magFilter = THREE.NearestFilter;
+froghit.minFilter = THREE.LinearMipMapLinearFilter;
+
+// BREAKS IT
+// // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+frogjump = new THREE.SpriteSheetTexture(
+    "frog",
+    "assets/frog.png",
+    4,
+    100,
+    4
+);
+
+frogjump.magFilter = THREE.NearestFilter;
+frogjump.minFilter = THREE.LinearMipMapLinearFilter;
+// // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+frogmat = new THREE.MeshBasicMaterial({
+  map: frogjump,
+  alphaTest:1
+});    
+geometry = new THREE.PlaneGeometry(2, 2, 1);
+bxmesh1 = new THREE.Mesh(geometry, frogmat);
+bxmesh1.renderOrder = 2;
+bxmesh1.position.z = 0.5;
+bxmesh1.position.y = 0.5;
+bxmesh1.rotation.y = Math.PI/2;
+bx1.add(bxmesh1);
+
+}
+
+
+// HIT function
+function hit (v) {
+  frogmat.map = frogjump;
+  if ( v.length > 0) {
+
+    if (v[0].object.name == 'red') {
+      points.r+=0.125; 
+      document.getElementById('red').innerHTML=points.r;
+      frogmat.map = froghit;
+    }
+
+}//if
+}// fn hit
+
+
+
+
+// animate loop
+var animate = function () {
+  requestAnimationFrame( animate );
+  renderer.render(scene, camera);
+  controls.update();
+  xtimer ++;
+  playerupdate();
+
+
+// hitbox
+for (var vertexIndex = 0; vertexIndex < cubicbody.geometry.vertices.length; vertexIndex++)
+{   
+  var directionVector = new THREE.Vector3( 0, -1, 0 );
+  var ray = new THREE.Raycaster( hero.position, directionVector.normalize() );
+  var collisionResults = ray.intersectObjects( collidableMeshList );
+  if ( collisionResults.length > 0 && collidableMeshList.distance < directionVector.length() ) 
+    console.log('hit');
+  hit(collisionResults)
+} 
+// // colliders logic
+for ( var i = 0; i < collidableMeshList.length; i ++ ) { 
+  collidableMeshList[i].position.z = Math.sin(xtimer/20)+5;
+}
+
+
+};//render loop
+
+
+
+// make hero/player
+function setupplayer() {
+  idletexture = new THREE.TextureLoader().load( 'assets/kididle.png' );  
+  runtexture = new THREE.SpriteSheetTexture(
+    "player",
+    "assets/kidrun.png",
+    8,
+    100,
+    8
+    );
+// remove antialias
+idletexture.magFilter = THREE.NearestFilter;
+idletexture.minFilter = THREE.LinearMipMapLinearFilter;
+runtexture.magFilter = THREE.NearestFilter;
+runtexture.minFilter = THREE.LinearMipMapLinearFilter;
+
+// hero plane
+heromaterial = new THREE.MeshBasicMaterial({
+  map: idletexture
+  ,side:THREE.DoubleSide
+  ,alphaTest:1
+});    
+geometry = new THREE.PlaneGeometry(2, 2, 1);
+xmesh = new THREE.Mesh(geometry, heromaterial);
+xmesh.renderOrder = 2;
+xmesh.position.y = 1;
+hero.add(xmesh);
+}
+
+
+
+
+// player movement update
+function playerupdate() {
+  camera.lookAt(hero.position)
+  if (keyboard.isDown(keyboard.LEFT))   {
+    xmesh.rotation.y = Math.PI;
+    hero.position.z += 0.1; 
+    camera.position.z += 0.1; 
+    heromaterial.map = runtexture; 
+  }
+
+  if (keyboard.isDown(keyboard.RIGHT))   {
+    hero.position.z -= 0.1; 
+    camera.position.z -= 0.1; 
+    xmesh.rotation.y = 0;
+    heromaterial.map = runtexture;
+  }    
+
+}
+// START >>>>>>>>>>>>>>>>>>>>>>>>>>>>
+setTimeout(function () {
+  colliders();
+  setupplayer();
+  console.log(spriteSheetTextureMap)
+  animate();
+}, 200);
+</script>
+</body>
+</html>
