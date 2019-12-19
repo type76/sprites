@@ -31,63 +31,42 @@
   <script>
 // spritesheet function
 const spriteSheetTextureMap = {};
-THREE.SpriteSheetTexture = function (
-  id,
-  imageURL,
-  framesX,
-  frameDelay,
-  _endFrame
-  ) {
+THREE.SpriteSheetTexture = function (id,imageURL,framesX,frameDelay,_endFrame) {
+    let frameW = 0;
+    let frameH = 0;
+    let x = 0;
+    let y = 0;
+    let count = 0;
+    let startFrame = 0;
+    const endFrame = _endFrame || framesX;
+    const canvas = document.createElement("canvas");
+    let ctx = canvas.getContext("2d");
+    const canvasTexture = new THREE.CanvasTexture(canvas); //TODO: performance boost for moving this into img.onload?
+    const img = new Image();
     if(spriteSheetTextureMap[id]){
-    clearInterval(spriteSheetTextureMap[id].timer);
-  }
-  spriteSheetTextureMap[id] = {
-    imageURL,
-    framesX,
-    frameDelay,
-    _endFrame
-  };
-
-  var frameWidth,
-  frameHeight,
-  x = (y = count = startFrame = 0),
-  endFrame = _endFrame || framesX,
-  canvas = document.createElement("canvas"),
-  ctx = canvas.getContext("2d"),
-  canvasTexture = new THREE.CanvasTexture(canvas),
-  img = new Image();
-  img.onload = function () {
-    canvas.width = frameWidth = img.width / framesX;
-    canvas.height = frameHeight = img.height;
-    spriteSheetTextureMap[id].timer = setInterval(nextFrame, frameDelay);
-  };
-  img.src = imageURL;
-
-  function nextFrame() {
-    count++;
-
-    if (count >= endFrame) {
-      count = 0;
+        clearInterval(spriteSheetTextureMap[id].timer);
     }
-
-    x = (count % framesX) * frameWidth;
-    y = ((count / framesX) | 0) * frameHeight;
-
-    ctx.clearRect(0, 0, frameWidth, frameHeight);
-    ctx.drawImage(
-      img,
-      x,
-      y,
-      frameWidth,
-      frameHeight,
-      0,
-      0,
-      frameWidth,
-      frameHeight
-      );
-    canvasTexture.needsUpdate = true;
-  }
-  return canvasTexture;
+    spriteSheetTextureMap[id] = {
+        imageURL,
+        framesX,
+        frameDelay,
+        _endFrame
+    };
+    img.onload = function () {
+        canvas.width = frameW = img.width / framesX;
+        canvas.height = frameH = img.height;
+        spriteSheetTextureMap[id].timer = setInterval(()=>{
+            count++;
+            if (count >= endFrame) count = 0;
+            x = (count % framesX) * frameW;
+            y = ((count / framesX) | 0) * frameH;
+            ctx.clearRect(0, 0, frameW, frameH);
+            ctx.drawImage(img,x,y,frameW,frameH);
+            canvasTexture.needsUpdate = true;
+        }, frameDelay);
+    };
+    img.src = imageURL;
+    return canvasTexture;
 };
 </script>
 
