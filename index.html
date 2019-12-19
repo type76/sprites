@@ -61,7 +61,7 @@ THREE.SpriteSheetTexture = function (id,imageURL,framesX,frameDelay,_endFrame) {
             x = (count % framesX) * frameW;
             y = ((count / framesX) | 0) * frameH;
             ctx.clearRect(0, 0, frameW, frameH);
-            ctx.drawImage(img,x,y,frameW,frameH);
+            ctx.drawImage(img,x,y,frameW,frameH,0,0,frameW,frameH);
             canvasTexture.needsUpdate = true;
         }, frameDelay);
     };
